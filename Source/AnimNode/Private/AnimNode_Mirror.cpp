@@ -14,6 +14,7 @@ FAnimNode_Mirror::FAnimNode_Mirror()
     : MirPlane(MirrorPlane::YZ_Plane)
     , SearchReplaceKeyPair(FString("_l,_r,_lt,_rt,_left,_right,L_,R_,_L_,_R_,Left,Right"))
     , SkipCheckKeyStr(FString(""))
+    , bEnable(true)
 {
 }
 
@@ -24,16 +25,16 @@ void FAnimNode_Mirror::Initialize_AnyThread(const FAnimationInitializeContext& C
     // Init the Inputs
     InPose.Initialize(Context);
 
-    AnimInstanceProxy = Context.AnimInstanceProxy;
+    if(bEnable){
+        GenerateInitialStatus();
+        GenerateSearchReplaceKey();
+        SplitStringStr(SkipCheckKeyStr, TEXT(","),  SkipCheckKeys);
+        GenerateMirrorBoneInfo(Context);
+        GenerateFlippingRule(Context);
 
-    GenerateInitialStatus();
-    GenerateSearchReplaceKey();
-    SplitStringStr(SkipCheckKeyStr, TEXT(","),  SkipCheckKeys);
-    GenerateMirrorBoneInfo();
-    GenerateFlippingRule();
-
-    //OutputMirrorFlippingRuleLog();
-    GenerateMirrorMorphTargetInfo(Context);
+        //OutputMirrorFlippingRuleLog();
+        GenerateMirrorMorphTargetInfo(Context);
+    }
 }
 
 void FAnimNode_Mirror::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
@@ -52,13 +53,16 @@ void FAnimNode_Mirror::Update_AnyThread(const FAnimationUpdateContext& Context)
 void FAnimNode_Mirror::Evaluate_AnyThread(FPoseContext& Output)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread);
-    FPoseContext SourceData(Output);
-    InPose.Evaluate(SourceData);
-    
-    Output = SourceData;
+    if(bEnable){
+        FPoseContext SourceData(Output);
+        InPose.Evaluate(SourceData);
+        Output = SourceData;
 
-    DoMirrorBones(Output);
-    DoMirrorMorphTargets(Output);
+        DoMirrorBones(Output);
+        DoMirrorMorphTargets(Output);
+    }
+    else
+        InPose.Evaluate(Output);
 }
 
 void FAnimNode_Mirror::DoMirrorBones(FPoseContext& Output)
@@ -66,7 +70,7 @@ void FAnimNode_Mirror::DoMirrorBones(FPoseContext& Output)
     TArray<float> Temp;
     Temp.Init(0, 3);
 
-    const FBoneContainer& BoneContainer = AnimInstanceProxy->GetRequiredBones();
+    const FBoneContainer& BoneContainer = Output.AnimInstanceProxy->GetRequiredBones();
     USkeleton* Skel = BoneContainer.GetSkeletonAsset();
     FReferenceSkeleton RefSkel = Skel->GetReferenceSkeleton();
 
@@ -252,14 +256,14 @@ FName FAnimNode_Mirror::GetMirrorBone(const FName& InBone, const FReferenceSkele
     return OutBone;
 }
 
-void FAnimNode_Mirror::GenerateMirrorBoneInfo()
+void FAnimNode_Mirror::GenerateMirrorBoneInfo(const FAnimationInitializeContext& Context)
 {
     if(SearchInfo.Num() == 0)
         return;
 
     MirrorBoneInfo.Empty();
 
-    const FBoneContainer& BoneContainer = AnimInstanceProxy->GetRequiredBones();
+    const FBoneContainer& BoneContainer = Context.AnimInstanceProxy->GetRequiredBones();
     USkeleton* Skel = BoneContainer.GetSkeletonAsset();
     FReferenceSkeleton RefSkel = Skel->GetReferenceSkeleton();
     TArray<FMeshBoneInfo> BoneInfo = RefSkel.GetRawRefBoneInfo();
@@ -291,7 +295,7 @@ void FAnimNode_Mirror::GenerateMirrorBoneInfo()
     }
 }
 
-void FAnimNode_Mirror::GenerateFlippingRule()
+void FAnimNode_Mirror::GenerateFlippingRule(const FAnimationInitializeContext& Context)
 {
     FlippingRule.Empty();
     OperateBones.Empty();
@@ -306,16 +310,16 @@ void FAnimNode_Mirror::GenerateFlippingRule()
             continue;
 
         OperateBones.Add(ABone);
-        GenerateSingleBoneFlippingRule(ABone, BBone);
+        GenerateSingleBoneFlippingRule(Context, ABone, BBone);
     }
 }
 
-void FAnimNode_Mirror::GenerateSingleBoneFlippingRule(const FName& ABone, const FName& BBone)
+void FAnimNode_Mirror::GenerateSingleBoneFlippingRule(const FAnimationInitializeContext& Context, const FName& ABone, const FName& BBone)
 {
     TArray<int> AxisRepInfo[2];
     TArray<FName> Objs = {ABone, BBone};
     for(int i = 0; i < Objs.Num(); i++)
-        GenerateBoneAxisRepInfo(Objs[i], AxisRepInfo[i]);
+        GenerateBoneAxisRepInfo(Context, Objs[i], AxisRepInfo[i]);
 
     TArray<int> AlignAxisRepInfo[2];
     GenerateAlignAxisRepInfo(AxisRepInfo, AlignAxisRepInfo);
@@ -327,9 +331,9 @@ void FAnimNode_Mirror::GenerateSingleBoneFlippingRule(const FName& ABone, const 
     GenerateSingleBoneFlippingRuleDetail(Objs, AxisRepInfo, RotFlipVals);
 }
 
-void FAnimNode_Mirror::GenerateBoneAxisRepInfo(const FName& InBone, TArray<int>& AxisRepInfo)
+void FAnimNode_Mirror::GenerateBoneAxisRepInfo(const FAnimationInitializeContext& Context, const FName& InBone, TArray<int>& AxisRepInfo)
 {
-    const FBoneContainer& BoneContainer = AnimInstanceProxy->GetRequiredBones();
+    const FBoneContainer& BoneContainer = Context.AnimInstanceProxy->GetRequiredBones();
     USkeleton* Skel = BoneContainer.GetSkeletonAsset();
     FReferenceSkeleton RefSkel = Skel->GetReferenceSkeleton();
     

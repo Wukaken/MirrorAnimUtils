@@ -44,6 +44,9 @@ struct ANIMNODE_API FAnimNode_Mirror : public FAnimNode_Base
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings) //, meta = (PinHiddenByDefault))
 	FString SkipCheckKeyStr;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta = (PinShownByDefault))
+	bool bEnable;
+
 public:
 	FAnimNode_Mirror();
 
@@ -66,20 +69,18 @@ private:
 	TArray<FString> SearchKeys;
 	TArray<FString> SkipCheckKeys;
 
-	FAnimInstanceProxy* AnimInstanceProxy;
-
 	void GenerateInitialStatus();
 	void GenerateSearchReplaceKey();
-	void GenerateMirrorBoneInfo();
-	void GenerateFlippingRule();
+	void GenerateMirrorBoneInfo(const FAnimationInitializeContext& Context);
+	void GenerateFlippingRule(const FAnimationInitializeContext& Context);
 
 	bool CheckIsSkippedName(const FName& InBone);
 
 	void SplitStringStr(const FString& InStr, const FString& InS, TArray<FString>& OutList);
 	FName GetMirrorBone(const FName& InBone, const FReferenceSkeleton& RefSkel, int32& OutBoneID);
-	void GenerateSingleBoneFlippingRule(const FName& ABone, const FName& BBone);//, TArray<int> (&FlipAttrInfo)[2], TArray<int> (&FlipValInfo)[2]);
+	void GenerateSingleBoneFlippingRule(const FAnimationInitializeContext& Context, const FName& ABone, const FName& BBone);//, TArray<int> (&FlipAttrInfo)[2], TArray<int> (&FlipValInfo)[2]);
 
-	void GenerateBoneAxisRepInfo(const FName& InBone, TArray<int>& AxisRepInfo);
+	void GenerateBoneAxisRepInfo(const FAnimationInitializeContext& Context, const FName& InBone, TArray<int>& AxisRepInfo);
 	void GenerateAxisRepInfoFromMatrix(const FMatrix& TM, TArray<int>& AxisRepInfo);
 
 	void GenerateAlignAxisRepInfo(const TArray<int> (&AxisRepInfo)[2], TArray<int>(&AlignAxisRepInfo)[2]);
