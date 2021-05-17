@@ -27,8 +27,6 @@ public class AnimNode : ModuleRules
 			new string[]
 			{
 				"Core",
-				"AnimGraph",
-				"BlueprintGraph",
 				"AnimGraphRuntime",
 				// ... add other public dependencies that you statically link with here ...
 			}
